@@ -1,0 +1,15 @@
+---
+basestations:
+  max_number_basestations: 1
+  bandwidths: [100e6]
+  carrier_frequencies: [2.4e6]
+  num_available_rbs: [100]
+slices:
+  max_number_slices: 5
+ues:
+  max_number_ues: 100
+simulation:
+  simu_name: industrial
+  max_number_steps: 1000
+  max_number_episodes: 200
+  hist_root_path: ./
