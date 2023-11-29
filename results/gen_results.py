@@ -1,11 +1,11 @@
 import os
 from typing import Tuple
-from matplotlib import lines
 
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+from matplotlib import lines
 from matplotlib.ticker import FixedLocator, NullFormatter
 
 

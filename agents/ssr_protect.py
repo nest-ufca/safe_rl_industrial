@@ -1,12 +1,11 @@
 from typing import Union
 
+import joblib
 import numpy as np
 from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
-import joblib
 
-from agents.callbacks import ProgressBarManager
 from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
@@ -28,7 +27,7 @@ class SSRProtect(Agent):
             num_available_rbs,
             seed,
         )
-        if hyperparams == "":
+        if hyperparams == "" or hyperparams == "ssr_protect":
             self.agent = SAC(
                 "MlpPolicy",
                 env,
@@ -72,15 +71,14 @@ class SSRProtect(Agent):
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
 
     def train(self, total_timesteps: int) -> None:
-        with ProgressBarManager(total_timesteps) as callback_progress_bar:
-            self.agent.learn(
-                total_timesteps=total_timesteps,
-                callback=[
-                    callback_progress_bar,
-                    self.callback_checkpoint,
-                    self.callback_evaluation,
-                ],
-            )
+        self.agent.learn(
+            total_timesteps=total_timesteps,
+            callback=[
+                self.callback_checkpoint,
+                self.callback_evaluation,
+            ],
+            progress_bar=True,
+        )
         self.agent.save("./agents/models/final_ssr_protect")
 
     def save(self, filename: str) -> None:

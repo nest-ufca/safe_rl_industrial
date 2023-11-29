@@ -13,6 +13,7 @@ class QuadrigaChannels(Channel):
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = "",
     ) -> None:
         super().__init__(
             max_number_ues, max_number_basestations, num_available_rbs, rng
