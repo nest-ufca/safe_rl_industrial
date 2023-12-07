@@ -5,7 +5,6 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
 
-from agents.callbacks import ProgressBarManager
 from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
@@ -61,15 +60,14 @@ class SSRRL(Agent):
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
 
     def train(self, total_timesteps: int) -> None:
-        with ProgressBarManager(total_timesteps) as callback_progress_bar:
-            self.agent.learn(
-                total_timesteps=total_timesteps,
-                callback=[
-                    callback_progress_bar,
-                    self.callback_checkpoint,
-                    self.callback_evaluation,
-                ],
-            )
+        self.agent.learn(
+            total_timesteps=total_timesteps,
+            callback=[
+                self.callback_checkpoint,
+                self.callback_evaluation,
+            ],
+            progress_bar=True,
+        )
         self.agent.save("./agents/models/final_ssr_rl")
 
     def save(self, filename: str) -> None:
