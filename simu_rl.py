@@ -17,16 +17,17 @@ comm_env = CommunicationEnv(
     SimpleMobility,
     SimpleAssociation,
     "simple",
-    obs_space=RLSimple.get_obs_space,
-    action_space=RLSimple.get_action_space,
+    obs_space=RLSimple.get_obs_space(),
+    action_space=RLSimple.get_action_space(),
 )
-rl_agent = RLSimple(comm_env, 2, 2, np.array([2, 2]), seed=seed)
+rl_agent = RLSimple(comm_env, 2, 1, 2, np.array([2, 2]), seed=seed)
 comm_env.set_agent_functions(
-    rl_agent.obs_space_format,
-    rl_agent.action_format,
-    rl_agent.calculate_reward,
+    obs_space_format=rl_agent.obs_space_format,
+    action_format=rl_agent.action_format,
+    calculate_reward=rl_agent.calculate_reward,
+    obs_space=RLSimple.get_obs_space(),
+    action_space=RLSimple.get_action_space(),
 )
-check_env(comm_env)
 total_number_steps = 10000
 rl_agent.train(total_number_steps)
 

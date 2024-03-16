@@ -10,10 +10,12 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class SSRProtect(Agent):
+
     def __init__(
         self,
         env: CommunicationEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         hyperparameters: dict = {},
@@ -23,6 +25,7 @@ class SSRProtect(Agent):
         super().__init__(
             env,
             max_number_ues,
+            max_number_slices,
             max_number_basestations,
             num_available_rbs,
             seed,
@@ -62,9 +65,7 @@ class SSRProtect(Agent):
 
         # Variables for round-robin scheduling
         self.current_ues = np.array([])
-        self.rbs_per_ue = np.zeros(
-            (self.env.max_number_slices, max_number_ues)
-        )
+        self.rbs_per_ue = np.zeros((self.max_number_slices, max_number_ues))
         self.allocation_rbs = []
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
@@ -132,6 +133,9 @@ class SSRProtect(Agent):
         return slice_values
 
     def calculate_reward(self, obs_space: dict) -> float:
+        assert isinstance(
+            self.env, CommunicationEnv
+        ), "The environment must be an instance of the CommunicationEnv class"
         metric_slices = self.obs_space_format(obs_space, False)
         maximum_buffer_latency = 100
         reward = {
@@ -235,8 +239,12 @@ class SSRProtect(Agent):
 
     def action_format(
         self,
-        action: np.ndarray,
+        action: Union[np.ndarray, dict],
     ) -> np.ndarray:
+        assert isinstance(action, np.ndarray), "Action must be a numpy array"
+        assert isinstance(
+            self.env, CommunicationEnv
+        ), "The environment must be an instance of the CommunicationEnv class"
         action_rbs = (
             np.around(
                 self.num_available_rbs[0] * (action + 1) / np.sum(action + 1)

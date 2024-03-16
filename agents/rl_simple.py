@@ -8,10 +8,12 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class RLSimple(Agent):
+
     def __init__(
         self,
         env: CommunicationEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         hyperparameters: dict = {},
@@ -20,6 +22,7 @@ class RLSimple(Agent):
         super().__init__(
             env,
             max_number_ues,
+            max_number_slices,
             max_number_basestations,
             num_available_rbs,
             seed,
@@ -75,16 +78,15 @@ class RLSimple(Agent):
 
     @staticmethod
     def get_action_space() -> spaces.Box:
-        return spaces.Box(low=-1, high=1, shape=(2 * 2 * 2,))
+        return spaces.Box(low=-1, high=1, shape=(2 * 2 * 2,), dtype=np.float64)
 
     @staticmethod
     def get_obs_space() -> spaces.Box:
-        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float32)
+        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float64)
 
     @staticmethod
-    def action_format(
-        action: np.ndarray,
-    ) -> np.ndarray:
+    def action_format(action: Union[np.ndarray, dict]) -> np.ndarray:
+        assert isinstance(action, np.ndarray), "Action must be a numpy array"
         action = np.reshape(action, (2, 2, 2))
         sched_decision = np.copy(action)
         sched_decision[0, 0] = (action[0, 0] >= action[0, 1]).astype(int)

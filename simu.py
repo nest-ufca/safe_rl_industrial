@@ -21,6 +21,7 @@ comm_env = CommunicationEnv(
 round_robin = RoundRobin(
     comm_env,
     comm_env.max_number_ues,
+    comm_env.max_number_slices,
     comm_env.max_number_basestations,
     comm_env.num_available_rbs,
 )

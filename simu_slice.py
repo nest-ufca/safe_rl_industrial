@@ -18,7 +18,7 @@ comm_env = CommunicationEnv(
     "simple_slice",
 )
 
-round_robin = RoundRobin(comm_env, 3, 2, np.array([8, 8]))
+round_robin = RoundRobin(comm_env, 3, 2, 2, np.array([8, 8]))
 comm_env.set_agent_functions(
     round_robin.obs_space_format,
     round_robin.action_format,

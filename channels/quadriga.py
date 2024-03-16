@@ -7,6 +7,7 @@ from sixg_radio_mgmt import Channel
 
 
 class QuadrigaChannels(Channel):
+
     def __init__(
         self,
         max_number_ues: int,
@@ -14,6 +15,7 @@ class QuadrigaChannels(Channel):
         num_available_rbs: np.ndarray,
         rng: np.random.Generator = np.random.default_rng(),
         root_path: str = "",
+        scenario_name: str = "",
     ) -> None:
         super().__init__(
             max_number_ues, max_number_basestations, num_available_rbs, rng

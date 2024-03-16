@@ -6,6 +6,7 @@ from sixg_radio_mgmt import Association, UEs
 
 
 class IndustrialAssociation(Association):
+
     def __init__(
         self,
         ues: UEs,
@@ -13,6 +14,8 @@ class IndustrialAssociation(Association):
         max_number_basestations: int,
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = "",
+        scenario_name: str = "",
     ) -> None:
         super().__init__(
             ues,

@@ -4,10 +4,12 @@ from sixg_radio_mgmt import Traffic
 
 
 class SimpleTraffic(Traffic):
+
     def __init__(
         self,
         max_number_ues: int,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = "",
     ) -> None:
         super().__init__(max_number_ues, rng)
 

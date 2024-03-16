@@ -10,6 +10,7 @@ from channels.quadriga import QuadrigaChannels
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import CommunicationEnv
 from traffics.industrial import IndustrialTraffic
+import gymnasium as gym
 
 scenarios = ["industrial"]
 agents = ["ssr_protect", "ssr"]
@@ -25,8 +26,12 @@ for scenario in scenarios:
             scenario,
             agent_name,
             seed=seed,
-            obs_space=SSRRL.get_obs_space if agent_name in agents else None,
-            action_space=SSRRL.get_action_space,
+            obs_space=(
+                SSRRL.get_obs_space()
+                if agent_name in agents
+                else gym.spaces.Space()
+            ),
+            action_space=SSRRL.get_action_space(),
         )
 
         match agent_name:
@@ -40,15 +45,17 @@ for scenario in scenarios:
         agent = AgentClass(
             comm_env,
             comm_env.max_number_ues,
+            comm_env.max_number_slices,
             comm_env.max_number_basestations,
             comm_env.num_available_rbs,
             seed=seed,
             hyperparams="ssr_protect" if agent_name == "ssr_protect" else "",
         )
+        assert agent.action_format is not None, "Action format not implemented"
         comm_env.set_agent_functions(
-            agent.obs_space_format,
-            agent.action_format,
-            agent.calculate_reward,
+            obs_space_format=agent.obs_space_format,
+            action_format=agent.action_format,
+            calculate_reward=agent.calculate_reward,
         )
 
         # check_env(comm_env)

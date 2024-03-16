@@ -6,17 +6,25 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class SSR(Agent):
+
     def __init__(
         self,
         env: CommunicationEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
         )
-
+        assert isinstance(
+            self.env, CommunicationEnv
+        ), "The environment must be an instance of the CommunicationEnv class"
         # Variables for round-robin scheduling
         self.current_ues = np.array([])
         self.rbs_per_ue = np.zeros(
@@ -96,5 +104,9 @@ class SSR(Agent):
     def calculate_reward(self, obs_space: dict) -> float:
         return 0
 
-    def action_format(self, action: np.ndarray) -> np.ndarray:
+    def action_format(
+        self,
+        action: Union[np.ndarray, dict],
+    ) -> np.ndarray:
+        assert isinstance(action, np.ndarray), "Action must be a numpy array"
         return action

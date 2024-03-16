@@ -90,7 +90,7 @@ def plot_graph(
                 plt.plot(slice_throughput, label=f"{agent}, slice {slice}")
                 xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
-            case ("buffer_latencies" | "buffer_occupancies"):
+            case "buffer_latencies" | "buffer_occupancies":
                 avg_spectral_efficiency = calc_slice_average(
                     data_metrics, metric, slice
                 )
@@ -104,7 +104,7 @@ def plot_graph(
                         ylabel = "Average buffer delay (ms)"
                     case "buffer_occupancies":
                         ylabel = "Buffer occupancy rate"
-            case ("basestation_ue_assoc" | "basestation_slice_assoc"):
+            case "basestation_ue_assoc" | "basestation_slice_assoc":
                 number_elements = np.sum(
                     np.sum(data_metrics[metric], axis=2), axis=1
                 )
@@ -613,13 +613,15 @@ def custom_grid_locator(
     all_ticks = np.concatenate((small_scale_ticks, large_scale_ticks))
 
     tick_labels = [
-        str(tick)
-        if tick in large_scale_ticks or tick == 0 or tick == 1
-        else ""
+        (
+            str(tick)
+            if tick in large_scale_ticks or tick == 0 or tick == 1
+            else ""
+        )
         for tick in all_ticks
     ]
 
-    return FixedLocator(all_ticks), tick_labels
+    return FixedLocator(all_ticks), tick_labels  # type: ignore
 
 
 scenario_names = ["industrial"]

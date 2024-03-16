@@ -25,7 +25,7 @@ from traffics.industrial import IndustrialTraffic
 N_TRIALS = 100
 N_STARTUP_TRIALS = 5
 N_EVALUATIONS = 5
-N_TIMESTEPS = 1e4
+N_TIMESTEPS = int(1e4)
 EVAL_FREQ = int(N_TIMESTEPS / N_EVALUATIONS)
 N_EVAL_EPISODES = 1
 SEED = 10
@@ -130,7 +130,7 @@ def objective(trial: optuna.Trial) -> float:
     env = Monitor(env)
     kwargs = DEFAULT_HYPERPARAMS.copy()
     kwargs.update(sample_sac_params(trial))
-    model = SAC(env=env, seed=SEED, **kwargs)
+    model = SAC(env=env, seed=SEED, **kwargs)  # type: ignore
     model.set_random_seed(SEED)
     eval_callback = TrialEvalCallback(
         env,
@@ -167,13 +167,14 @@ def create_env():
         scenario,
         agent,
         seed=SEED,
-        obs_space=SSRRL.get_obs_space,
-        action_space=SSRRL.get_action_space,
+        obs_space=SSRRL.get_obs_space(),
+        action_space=SSRRL.get_action_space(),
     )
     AgentClass = SSRProtect
     agent = AgentClass(
         comm_env,
         comm_env.max_number_ues,
+        comm_env.max_number_slices,
         comm_env.max_number_basestations,
         comm_env.num_available_rbs,
         seed=SEED,
@@ -182,6 +183,8 @@ def create_env():
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,
+        obs_space=SSRRL.get_obs_space(),
+        action_space=SSRRL.get_action_space(),
     )
 
     return (comm_env, agent)

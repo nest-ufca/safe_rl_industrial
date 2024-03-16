@@ -6,15 +6,21 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class RoundRobin(Agent):
+
     def __init__(
         self,
         env: CommunicationEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
         )
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
@@ -41,5 +47,6 @@ class RoundRobin(Agent):
     def calculate_reward(self, obs_space: dict) -> float:
         return 0
 
-    def action_format(self, action: np.ndarray) -> np.ndarray:
+    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
+        assert isinstance(action, np.ndarray), "Action must be a numpy array"
         return action
