@@ -6,6 +6,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
 
 from sixg_radio_mgmt import Agent, CommunicationEnv
+from custom_env import CustomEnv
 
 
 class SSRRL(Agent):
@@ -29,9 +30,9 @@ class SSRRL(Agent):
             num_available_rbs,
             seed,
         )
-        assert isinstance(
-            self.env, CommunicationEnv
-        ), "The environment must be an instance of the CommunicationEnv class"
+        assert isinstance(self.env, CommunicationEnv) or isinstance(
+            self.env, CustomEnv
+        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
         self.agent = SAC(
             "MlpPolicy",
             env,
@@ -57,9 +58,7 @@ class SSRRL(Agent):
 
         # Variables for round-robin scheduling
         self.current_ues = np.array([])
-        self.rbs_per_ue = np.zeros(
-            (self.env.max_number_slices, max_number_ues)
-        )
+        self.rbs_per_ue = np.zeros((self.max_number_slices, max_number_ues))
         self.allocation_rbs = []
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
@@ -127,9 +126,9 @@ class SSRRL(Agent):
         return slice_values
 
     def calculate_reward(self, obs_space: dict) -> float:
-        assert isinstance(
-            self.env, CommunicationEnv
-        ), "The environment must be an instance of the CommunicationEnv class"
+        assert isinstance(self.env, CommunicationEnv) or isinstance(
+            self.env, CustomEnv
+        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
         reward = 0
         metric_slices = self.obs_space_format(obs_space, False)
         maximum_buffer_latency = 100
@@ -187,9 +186,9 @@ class SSRRL(Agent):
         action: Union[np.ndarray, dict],
     ) -> np.ndarray:
         assert isinstance(action, np.ndarray), "Action must be a numpy array"
-        assert isinstance(
-            self.env, CommunicationEnv
-        ), "The environment must be an instance of the CommunicationEnv class"
+        assert isinstance(self.env, CommunicationEnv) or isinstance(
+            self.env, CustomEnv
+        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
         action_rbs = (
             np.around(
                 self.num_available_rbs[0] * (action + 1) / np.sum(action + 1)
