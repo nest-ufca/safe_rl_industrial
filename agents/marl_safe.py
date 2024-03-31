@@ -6,16 +6,15 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
 
-from sixg_radio_mgmt import Agent, CommunicationEnv
-from custom_env import CustomEnv
-from sixg_radio_mgmt.sixg_radio_mgmt.marl_comm_env import MARLCommEnv
+from sixg_radio_mgmt import Agent
+from marl_custom_env import MARLCustomEnv
 
 
 class MARLSafe(Agent):
 
     def __init__(
         self,
-        env: CommunicationEnv,
+        env: MARLCustomEnv,
         max_number_ues: int,
         max_number_slices: int,
         max_number_basestations: int,
@@ -25,7 +24,7 @@ class MARLSafe(Agent):
         hyperparams: str = "",
     ) -> None:
         super().__init__(
-            env,
+            env,  # type: ignore We created a new class instead of using MARLCommEnv
             max_number_ues,
             max_number_slices,
             max_number_basestations,
@@ -47,7 +46,7 @@ class MARLSafe(Agent):
     def save(self, filename: str) -> None:
         self.agent.save(filename)
 
-    def load(self, filename: str, env: CommunicationEnv) -> None:
+    def load(self, filename: str, env: MARLCustomEnv) -> None:
         self.agent = SAC.load(filename, env=env)
 
     def obs_space_format(
@@ -103,10 +102,11 @@ class MARLSafe(Agent):
         return slice_values
 
     def calculate_reward(self, obs_space: dict) -> dict:
-        assert isinstance(self.env, CommunicationEnv) or isinstance(
-            self.env, CustomEnv
-        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
+        assert isinstance(
+            self.env, MARLCustomEnv
+        ), "The environment must be an instance of the CommunicationEnv class"
         metric_slices = self.obs_space_format(obs_space, False)
+        metric_slices = metric_slices["player_0"]
         maximum_buffer_latency = 100
         reward = {
             "urllc": {
@@ -138,8 +138,10 @@ class MARLSafe(Agent):
         }
 
         # URLLC
-        urllc_req_throughput = self.env.slice_req["urllc"]["ue_throughput"]
-        urllc_req_latency = self.env.slice_req["urllc"]["latency"]
+        urllc_req_throughput = self.env.comm_env.slice_req["urllc"][
+            "ue_throughput"
+        ]
+        urllc_req_latency = self.env.comm_env.slice_req["urllc"]["latency"]
         reward["urllc"]["throughput"]["value"] -= (
             1 - metric_slices[1] / urllc_req_throughput
             if metric_slices[1] < urllc_req_throughput
@@ -158,8 +160,10 @@ class MARLSafe(Agent):
             0,
         ):
             # eMBB
-            embb_req_throughput = self.env.slice_req["embb"]["ue_throughput"]
-            embb_req_latency = self.env.slice_req["embb"]["latency"]
+            embb_req_throughput = self.env.comm_env.slice_req["embb"][
+                "ue_throughput"
+            ]
+            embb_req_latency = self.env.comm_env.slice_req["embb"]["latency"]
             reward["embb"]["throughput"]["value"] -= (
                 1 - metric_slices[0] / embb_req_throughput
                 if metric_slices[0] < embb_req_throughput
@@ -173,7 +177,7 @@ class MARLSafe(Agent):
             )
 
             # mMTC
-            mmtc_req_latency = self.env.slice_req["mmtc"]["latency"]
+            mmtc_req_latency = self.env.comm_env.slice_req["mmtc"]["latency"]
             reward["mmtc"]["latency"]["value"] -= (
                 (metric_slices[5] - mmtc_req_latency)
                 / (maximum_buffer_latency - mmtc_req_latency)
@@ -254,9 +258,9 @@ class MARLSafe(Agent):
         action: Union[np.ndarray, dict],
     ) -> np.ndarray:
         assert isinstance(action, dict), "Action must be a Dict"
-        assert isinstance(self.env, CommunicationEnv) or isinstance(
-            self.env, CustomEnv
-        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
+        assert isinstance(
+            self.env, MARLCustomEnv
+        ), "The environment must be an instance of the MARLCustomEnv"
         action_rbs = (
             np.around(
                 self.num_available_rbs[0]
@@ -267,7 +271,9 @@ class MARLSafe(Agent):
             else np.zeros(3)
         )
         # TODO Implement intra-slice schedulers based on intra-slice actions
-        sched_decision = self.round_robin(action_rbs, self.env.slices.ue_assoc)
+        sched_decision = self.round_robin(
+            action_rbs, self.env.comm_env.slices.ue_assoc
+        )
 
         return sched_decision
 

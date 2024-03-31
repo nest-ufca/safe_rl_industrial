@@ -69,10 +69,10 @@ def env_creator(env_config):
     )
     agent = env_config["agent_class"](
         marl_custom,
-        marl_custom.marl_comm_env.comm_env.max_number_ues,
-        marl_custom.marl_comm_env.comm_env.max_number_slices,
-        marl_custom.marl_comm_env.comm_env.max_number_basestations,
-        marl_custom.marl_comm_env.comm_env.num_available_rbs,
+        marl_custom.comm_env.max_number_ues,
+        marl_custom.comm_env.max_number_slices,
+        marl_custom.comm_env.max_number_basestations,
+        marl_custom.comm_env.num_available_rbs,
     )
     marl_custom.set_agent_functions(
         agent.obs_space_format,
@@ -146,10 +146,10 @@ if training_flag:
             seed=env_config["seed"],
         )
     )
-    # algo_config["model"]["fcnet_hiddens"] = [
-    #     64,
-    #     64,
-    # ]  # Set neural network size
+    algo_config["model"]["fcnet_hiddens"] = [
+        64,
+        64,
+    ]  # Set neural network size
     stop = {
         "episodes_total": env_config["training_episodes"]
         * env_config["training_epochs"],
@@ -182,17 +182,16 @@ last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
 assert last_checkpoint is not None, "Last checkpoint is None"
 algo = Algorithm.from_checkpoint(last_checkpoint)
 marl_custom = env_creator(env_config)
-marl_custom.marl_comm_env.comm_env.max_number_episodes = (
+marl_custom.comm_env.max_number_episodes = (
     env_config["testing_episodes"] + env_config["training_episodes"]
 )
-obs, _ = marl_custom.marl_comm_env.reset(
+obs, _ = marl_custom.reset(
     seed=env_config["seed_test"],
     options={"initial_episode": env_config["training_episodes"]},
 )
 for step in tqdm(
     np.arange(
-        marl_custom.marl_comm_env.comm_env.max_number_steps
-        * env_config["testing_episodes"]
+        marl_custom.comm_env.max_number_steps * env_config["testing_episodes"]
     ),
     desc="Testing...",
 ):
@@ -205,11 +204,9 @@ for step in tqdm(
             policy_id=policy_id,
             explore=False,
         )
-    obs, reward, terminated, truncated, info = marl_custom.marl_comm_env.step(
-        action
-    )
+    obs, reward, terminated, truncated, info = marl_custom.step(action)
     assert isinstance(terminated, dict), "Termination must be a dict"
     if terminated["__all__"]:
-        obs, _ = marl_custom.marl_comm_env.reset()
+        obs, _ = marl_custom.reset()
 
 ray.shutdown()

@@ -17,7 +17,7 @@ tensorboard = "*"
 scipy = "*"
 optuna = "*"
 joblib = "*"
-ray = "==2.9.3"
+ray = "*"
 pettingzoo = "*"
 
 [dev-packages]
