@@ -17,7 +17,7 @@ tensorboard = "*"
 scipy = "*"
 optuna = "*"
 joblib = "*"
-ray = {extras = ["rllib"], version = "*"}
+ray = "==2.9.3"
 pettingzoo = "*"
 
 [dev-packages]

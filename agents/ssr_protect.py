@@ -11,7 +11,6 @@ from custom_env import CustomEnv
 
 
 class SSRProtect(Agent):
-
     def __init__(
         self,
         env: CommunicationEnv,

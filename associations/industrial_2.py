@@ -6,7 +6,6 @@ from sixg_radio_mgmt import Association, UEs
 
 
 class IndustrialAssociation(Association):
-
     def __init__(
         self,
         ues: UEs,

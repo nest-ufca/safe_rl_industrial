@@ -4,7 +4,6 @@ from sixg_radio_mgmt import Traffic
 
 
 class SimpleTraffic(Traffic):
-
     def __init__(
         self,
         max_number_ues: int,

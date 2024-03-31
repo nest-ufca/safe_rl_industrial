@@ -8,7 +8,6 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class RLSimple(Agent):
-
     def __init__(
         self,
         env: CommunicationEnv,

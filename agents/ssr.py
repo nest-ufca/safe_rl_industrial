@@ -6,7 +6,6 @@ from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class SSR(Agent):
-
     def __init__(
         self,
         env: CommunicationEnv,

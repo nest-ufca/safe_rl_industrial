@@ -7,7 +7,6 @@ from sixg_radio_mgmt import Channel
 
 
 class QuadrigaChannels(Channel):
-
     def __init__(
         self,
         max_number_ues: int,

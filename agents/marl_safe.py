@@ -1,5 +1,6 @@
 from typing import Union
 
+import joblib
 import numpy as np
 from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
@@ -7,9 +8,11 @@ from stable_baselines3.sac.sac import SAC
 
 from sixg_radio_mgmt import Agent, CommunicationEnv
 from custom_env import CustomEnv
+from sixg_radio_mgmt.sixg_radio_mgmt.marl_comm_env import MARLCommEnv
 
 
-class SSRRL(Agent):
+class MARLSafe(Agent):
+
     def __init__(
         self,
         env: CommunicationEnv,
@@ -29,31 +32,6 @@ class SSRRL(Agent):
             num_available_rbs,
             seed,
         )
-        assert isinstance(self.env, CommunicationEnv) or isinstance(
-            self.env, CustomEnv
-        ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
-        self.agent = SAC(
-            "MlpPolicy",
-            env,
-            verbose=0,
-            tensorboard_log="./tensorboard-logs/",
-            seed=self.seed,
-        )
-
-        self.callback_checkpoint = CheckpointCallback(
-            save_freq=1000,
-            save_path="./agents/models/ssr_rl/",
-            name_prefix="ssr_rl",
-        )
-        self.callback_evaluation = EvalCallback(
-            eval_env=env,
-            log_path="./evaluations/ssr_rl",
-            best_model_save_path="./agents/models/best_ssr_rl/",
-            n_eval_episodes=1,
-            eval_freq=5000,
-            verbose=False,
-            warn=False,
-        )
 
         # Variables for round-robin scheduling
         self.current_ues = np.array([])
@@ -64,15 +42,7 @@ class SSRRL(Agent):
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
 
     def train(self, total_timesteps: int) -> None:
-        self.agent.learn(
-            total_timesteps=total_timesteps,
-            callback=[
-                self.callback_checkpoint,
-                self.callback_evaluation,
-            ],
-            progress_bar=True,
-        )
-        self.agent.save("./agents/models/final_ssr_rl")
+        pass
 
     def save(self, filename: str) -> None:
         self.agent.save(filename)
@@ -82,8 +52,13 @@ class SSRRL(Agent):
 
     def obs_space_format(
         self, obs_space: dict, normalization: bool = True
-    ) -> np.ndarray:
-        formatted_obs_space = np.array([])
+    ) -> dict:
+        formatted_obs_space = {
+            "player_0": np.array([]),
+            "player_1": None,
+            "player_2": None,
+            "player_3": None,
+        }
         hist_labels = [
             "pkt_throughputs",
             "buffer_latencies",
@@ -102,12 +77,15 @@ class SSRRL(Agent):
                 "buffer_occupancies": 1,
             }
         for hist_label in hist_labels:
-            formatted_obs_space = np.append(
-                formatted_obs_space,
+            formatted_obs_space["player_0"] = np.append(
+                formatted_obs_space["player_0"],
                 self.slice_average(obs_space, hist_label)
                 / normalization_factors[hist_label],
                 axis=0,
             )
+
+        for intra_idx in np.arange(1, 4):  # Intra-slice TODO
+            formatted_obs_space[f"player_{intra_idx}"] = np.zeros(3)
 
         return formatted_obs_space
 
@@ -124,86 +102,173 @@ class SSRRL(Agent):
 
         return slice_values
 
-    def calculate_reward(self, obs_space: dict) -> float:
+    def calculate_reward(self, obs_space: dict) -> dict:
         assert isinstance(self.env, CommunicationEnv) or isinstance(
             self.env, CustomEnv
         ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
-        reward = 0
         metric_slices = self.obs_space_format(obs_space, False)
         maximum_buffer_latency = 100
-        # eMBB
-        embb_req_throughput = self.env.slice_req["embb"]["ue_throughput"]
-        embb_req_latency = self.env.slice_req["embb"]["latency"]
-        reward -= (
-            1 - metric_slices[0] / embb_req_throughput
-            if metric_slices[0] < embb_req_throughput
-            else 0
-        )
-        reward -= (
-            (metric_slices[3] - embb_req_latency)
-            / (maximum_buffer_latency - embb_req_latency)
-            if metric_slices[3] > embb_req_latency
-            else 0
-        )
+        reward = {
+            "urllc": {
+                "throughput": {
+                    "value": 0,
+                    "weight": 0.5,
+                },
+                "latency": {
+                    "value": 0,
+                    "weight": 0.5,
+                },
+            },
+            "embb": {
+                "throughput": {
+                    "value": 0,
+                    "weight": 0.5,
+                },
+                "latency": {
+                    "value": 0,
+                    "weight": 0.3,
+                },
+            },
+            "mmtc": {
+                "latency": {
+                    "value": 0,
+                    "weight": 0.2,
+                },
+            },
+        }
 
         # URLLC
         urllc_req_throughput = self.env.slice_req["urllc"]["ue_throughput"]
         urllc_req_latency = self.env.slice_req["urllc"]["latency"]
-        reward -= (
+        reward["urllc"]["throughput"]["value"] -= (
             1 - metric_slices[1] / urllc_req_throughput
             if metric_slices[1] < urllc_req_throughput
             else 0
         )
-        reward -= (
+        reward["urllc"]["latency"]["value"] -= (
             (metric_slices[4] - urllc_req_latency)
             / (maximum_buffer_latency - urllc_req_latency)
             if metric_slices[4] > urllc_req_latency
             else 0
         )
 
-        # mMTC
-        mmtc_req_latency = self.env.slice_req["embb"]["latency"]
-        reward -= (
-            (metric_slices[5] - mmtc_req_latency)
-            / (maximum_buffer_latency - mmtc_req_latency)
-            if metric_slices[5] > mmtc_req_latency
-            else 0
+        if np.isclose(
+            reward["urllc"]["throughput"]["value"]
+            + reward["urllc"]["latency"]["value"],
+            0,
+        ):
+            # eMBB
+            embb_req_throughput = self.env.slice_req["embb"]["ue_throughput"]
+            embb_req_latency = self.env.slice_req["embb"]["latency"]
+            reward["embb"]["throughput"]["value"] -= (
+                1 - metric_slices[0] / embb_req_throughput
+                if metric_slices[0] < embb_req_throughput
+                else 0
+            )
+            reward["embb"]["latency"]["value"] -= (
+                (metric_slices[3] - embb_req_latency)
+                / (maximum_buffer_latency - embb_req_latency)
+                if metric_slices[3] > embb_req_latency
+                else 0
+            )
+
+            # mMTC
+            mmtc_req_latency = self.env.slice_req["mmtc"]["latency"]
+            reward["mmtc"]["latency"]["value"] -= (
+                (metric_slices[5] - mmtc_req_latency)
+                / (maximum_buffer_latency - mmtc_req_latency)
+                if metric_slices[5] > mmtc_req_latency
+                else 0
+            )
+
+            total_reward = (
+                reward["embb"]["throughput"]["weight"]
+                * reward["embb"]["throughput"]["value"]
+                + reward["embb"]["latency"]["weight"]
+                * reward["embb"]["latency"]["value"]
+                + reward["mmtc"]["latency"]["value"]
+                * reward["mmtc"]["latency"]["weight"]
+            )
+        else:
+            total_reward = (
+                reward["urllc"]["throughput"]["value"]
+                * reward["urllc"]["throughput"]["weight"]
+                + reward["urllc"]["latency"]["value"]
+                * reward["urllc"]["latency"]["weight"]
+            ) - 1
+        reward_dict = {  # TODO
+            "player_0": total_reward,
+            "player_1": 0,
+            "player_2": 0,
+            "player_3": 0,
+        }
+
+        return reward_dict
+
+    @staticmethod
+    def get_action_space() -> spaces.Dict:
+        action_space = spaces.Dict(
+            {
+                f"player_{idx}": (
+                    spaces.Box(
+                        low=-1,
+                        high=1,
+                        shape=(3,),
+                        dtype=np.float64,
+                    )
+                    if idx == 0
+                    else spaces.Discrete(3)
+                )
+                for idx in range(4)
+            }
+        )
+        return action_space
+
+    @staticmethod
+    def get_obs_space() -> spaces.Dict:
+        obs_space = spaces.Dict(
+            {
+                f"player_{idx}": (
+                    spaces.Box(
+                        low=0,
+                        high=np.inf,
+                        shape=(9,),
+                        dtype=np.float64,
+                    )
+                    if idx == 0
+                    else spaces.Box(
+                        low=0,
+                        high=np.inf,
+                        shape=(3,),
+                        dtype=np.float64,
+                    )
+                )
+                for idx in range(4)
+            }
         )
 
-        return reward
-
-    @staticmethod
-    def get_action_space() -> spaces.Box:
-        return spaces.Box(low=-1, high=1, shape=(3,))
-
-    @staticmethod
-    def get_obs_space() -> spaces.Box:
-        return spaces.Box(low=0, high=np.inf, shape=(3 * 3,), dtype=np.float64)
+        return obs_space
 
     def action_format(
         self,
         action: Union[np.ndarray, dict],
     ) -> np.ndarray:
-        assert isinstance(action, np.ndarray), "Action must be a numpy array"
+        assert isinstance(action, dict), "Action must be a Dict"
         assert isinstance(self.env, CommunicationEnv) or isinstance(
             self.env, CustomEnv
         ), "The environment must be an instance of the CommunicationEnv or CustomEnv class"
         action_rbs = (
             np.around(
-                self.num_available_rbs[0] * (action + 1) / np.sum(action + 1)
+                self.num_available_rbs[0]
+                * (action["player_0"] + 1)
+                / np.sum(action["player_0"] + 1)
             )
-            if not np.isclose(np.sum(action + 1), 0)
+            if not np.isclose(np.sum(action["player_0"] + 1), 0)
             else np.zeros(3)
         )
-        # print(f"Action RBs: {action_rbs}")
+        # TODO Implement intra-slice schedulers based on intra-slice actions
         sched_decision = self.round_robin(action_rbs, self.env.slices.ue_assoc)
-        # slice_allocation = np.zeros(self.env.max_number_slices)
-        # for slice in np.arange(self.env.max_number_slices):
-        #     slice_allocation[slice] = np.sum(
-        #         np.sum(np.squeeze(sched_decision), axis=1)
-        #         * self.env.slices.ue_assoc[slice, :],
-        #     )
-        # print(f"Slice allocation: {slice_allocation}")
+
         return sched_decision
 
     def round_robin(

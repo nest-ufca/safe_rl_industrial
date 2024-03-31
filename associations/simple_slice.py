@@ -6,7 +6,6 @@ from sixg_radio_mgmt import Association, UEs
 
 
 class SimpleSliceAssociation(Association):
-
     def __init__(
         self,
         ues: UEs,

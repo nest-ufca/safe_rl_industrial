@@ -1,6 +1,9 @@
 # Vs code files
 .vscode
 
+# Ray results
+ray_results/
+
 # Tensorboard logs
 tensorboard-logs/
 
