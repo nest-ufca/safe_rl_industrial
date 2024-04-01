@@ -1,8 +1,8 @@
 from sixg_radio_mgmt import CommunicationEnv
 
 import gymnasium as gym
-
-
+import numpy as np
+from typing import Any, Dict, List, Optional, SupportsFloat, Tuple, Union
 class CustomEnv(gym.Env):
     def __init__(self, **kwargs):
         self.comm_env = CommunicationEnv(**kwargs)
@@ -11,8 +11,9 @@ class CustomEnv(gym.Env):
         self.aggregate_actions_steps = 4
         self.slice_req = self.comm_env.slice_req
         self.slices = self.comm_env.slices
+        self.seed: int = np.random.randint(1000)
 
-    def reset(self, seed):
+    def reset(self, seed: Optional[int] = None):
         return self.comm_env.reset(seed=seed)
 
     def step(self, sched_decision):
