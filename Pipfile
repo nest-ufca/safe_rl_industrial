@@ -17,8 +17,12 @@ tensorboard = "*"
 scipy = "*"
 optuna = "*"
 joblib = "*"
-ray = "*"
 pettingzoo = "*"
+pyarrow = "*"
+tree = "*"
+dm-tree = "*"
+typer = "*"
+ray = {extras = ["rllib"], version = "*"}
 
 [dev-packages]
 

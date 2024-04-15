@@ -1,3 +1,4 @@
+import gymnasium as gym
 import numpy as np
 from stable_baselines3.common.env_checker import check_env
 from tqdm import tqdm
@@ -10,7 +11,6 @@ from channels.quadriga import QuadrigaChannels
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import CommunicationEnv
 from traffics.industrial import IndustrialTraffic
-import gymnasium as gym
 
 scenarios = ["industrial"]
 agents = ["ssr_protect", "ssr"]

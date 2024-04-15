@@ -1,8 +1,11 @@
-from sixg_radio_mgmt import CommunicationEnv
+from typing import Any, Dict, List, Optional, SupportsFloat, Tuple, Union
 
 import gymnasium as gym
 import numpy as np
-from typing import Any, Dict, List, Optional, SupportsFloat, Tuple, Union
+
+from sixg_radio_mgmt import CommunicationEnv
+
+
 class CustomEnv(gym.Env):
     def __init__(self, **kwargs):
         self.comm_env = CommunicationEnv(**kwargs)

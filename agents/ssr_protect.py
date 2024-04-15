@@ -6,8 +6,8 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
 
-from sixg_radio_mgmt import Agent, CommunicationEnv
 from custom_env import CustomEnv
+from sixg_radio_mgmt import Agent, CommunicationEnv
 
 
 class SSRProtect(Agent):

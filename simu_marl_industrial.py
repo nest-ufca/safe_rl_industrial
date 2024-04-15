@@ -12,14 +12,13 @@ from ray.rllib.policy.policy import PolicySpec
 from ray.tune.registry import register_env
 from tqdm import tqdm
 
+from agents.marl_safe import MARLSafe
 from associations.industrial import IndustrialAssociation
 from channels.quadriga import QuadrigaChannels
 from channels.simple import SimpleChannel
-from mobilities.simple import SimpleMobility
-from sixg_radio_mgmt.sixg_radio_mgmt.mobility import Mobility
-from traffics.industrial import IndustrialTraffic
 from marl_custom_env import MARLCustomEnv
-from agents.marl_safe import MARLSafe
+from mobilities.simple import SimpleMobility
+from traffics.industrial import IndustrialTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
 training_flag = True  # False for reading from checkpoint

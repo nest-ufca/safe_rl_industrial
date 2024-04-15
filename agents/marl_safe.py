@@ -1,3 +1,4 @@
+from collections import deque
 from typing import Union
 
 import joblib
@@ -6,12 +7,17 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.sac.sac import SAC
 
-from sixg_radio_mgmt import Agent
+from agents.common import (
+    max_throughput,
+    proportional_fairness,
+    round_robin,
+    scores_to_rbs,
+)
 from marl_custom_env import MARLCustomEnv
+from sixg_radio_mgmt import Agent
 
 
 class MARLSafe(Agent):
-
     def __init__(
         self,
         env: MARLCustomEnv,
@@ -36,6 +42,7 @@ class MARLSafe(Agent):
         self.current_ues = np.array([])
         self.rbs_per_ue = np.zeros((self.max_number_slices, max_number_ues))
         self.allocation_rbs = []
+        self.last_unformatted_obs = deque(maxlen=10)
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
@@ -52,6 +59,7 @@ class MARLSafe(Agent):
     def obs_space_format(
         self, obs_space: dict, normalization: bool = True
     ) -> dict:
+        self.last_unformatted_obs.appendleft(obs_space)
         formatted_obs_space = {
             "player_0": np.array([]),
             "player_1": None,
@@ -261,59 +269,59 @@ class MARLSafe(Agent):
         assert isinstance(
             self.env, MARLCustomEnv
         ), "The environment must be an instance of the MARLCustomEnv"
-        action_rbs = (
-            np.around(
-                self.num_available_rbs[0]
-                * (action["player_0"] + 1)
-                / np.sum(action["player_0"] + 1)
-            )
-            if not np.isclose(np.sum(action["player_0"] + 1), 0)
-            else np.zeros(3)
+        sched_decision = np.array(
+            [
+                np.zeros(
+                    (self.max_number_ues, self.num_available_rbs[basestation])
+                )
+                for basestation in np.arange(self.max_number_basestations)
+            ]
         )
-        # TODO Implement intra-slice schedulers based on intra-slice actions
-        sched_decision = self.round_robin(
-            action_rbs, self.env.comm_env.slices.ue_assoc
+        action_rbs = scores_to_rbs(
+            action["player_0"],
+            self.num_available_rbs[0].astype(int),
+            self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
         )
+        for player_idx in np.arange(1, len(action)):
+            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                player_idx - 1
+            ].nonzero()[0]
+            if np.isclose(action_rbs[player_idx - 1], 0):
+                continue
+            match action[f"player_{player_idx}"]:
+                case 0:
+                    sched_decision = round_robin(
+                        allocation_rbs=sched_decision,
+                        slice_idx=player_idx - 1,
+                        rbs_per_slice=action_rbs,
+                        slice_ues=slice_ues,
+                        last_unformatted_obs=self.last_unformatted_obs,
+                        account_buffer=False,
+                    )
+                case 1:
+                    sched_decision = proportional_fairness(
+                        allocation_rbs=sched_decision,
+                        slice_idx=player_idx - 1,
+                        rbs_per_slice=action_rbs,
+                        slice_ues=slice_ues,
+                        env=self.env,
+                        last_unformatted_obs=self.last_unformatted_obs,
+                        num_available_rbs=self.num_available_rbs,
+                    )
+                case 2:
+                    sched_decision = max_throughput(
+                        allocation_rbs=sched_decision,
+                        slice_idx=player_idx - 1,
+                        rbs_per_slice=action_rbs,
+                        slice_ues=slice_ues,
+                        env=self.env,
+                        last_unformatted_obs=self.last_unformatted_obs,
+                        num_available_rbs=self.num_available_rbs,
+                    )
+                case _:
+                    raise ValueError("Invalid intra-slice scheduling action")
+        assert (
+            np.sum(sched_decision) == self.num_available_rbs[0]
+        ), f"Allocated RBs {np.sum(sched_decision)} are different from available RBs {self.num_available_rbs[0]}"
 
         return sched_decision
-
-    def round_robin(
-        self,
-        rbs_per_slice: np.ndarray,
-        slice_ue_assoc: np.ndarray,
-    ) -> np.ndarray:
-        number_slices = len(rbs_per_slice)
-        initial_rb = 0
-        self.allocation_rbs = [
-            np.zeros(
-                (
-                    self.max_number_ues,
-                    self.num_available_rbs[basestation],
-                )
-            )
-            for basestation in np.arange(self.max_number_basestations)
-        ]
-        for slice_idx in np.arange(number_slices):
-            idx_active_ues = slice_ue_assoc[slice_idx].nonzero()[0]
-            num_active_ues = np.sum(slice_ue_assoc[slice_idx]).astype(int)
-            num_rbs_per_ue = int(
-                (
-                    np.floor(rbs_per_slice[slice_idx] / num_active_ues)
-                    if num_active_ues > 0
-                    else 0
-                )
-            )
-            remaining_rbs = (
-                rbs_per_slice[slice_idx] - num_rbs_per_ue * num_active_ues
-            ).astype(int)
-            self.rbs_per_ue = np.ones(num_active_ues) * num_rbs_per_ue
-            self.rbs_per_ue[:remaining_rbs] += 1
-
-            for idx, ue_idx in enumerate(idx_active_ues):
-                self.allocation_rbs[0][
-                    ue_idx,
-                    initial_rb : initial_rb + int(self.rbs_per_ue[idx]),
-                ] = 1
-                initial_rb += int(self.rbs_per_ue[idx])
-
-        return np.array(self.allocation_rbs)

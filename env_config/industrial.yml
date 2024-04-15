@@ -1,8 +1,8 @@
 ---
 basestations:
   max_number_basestations: 1
-  bandwidths: [100e6]
-  carrier_frequencies: [2.4e6]
+  bandwidths: [100000000]
+  carrier_frequencies: [2400000]
   num_available_rbs: [100]
 slices:
   max_number_slices: 3
