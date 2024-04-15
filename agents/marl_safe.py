@@ -71,6 +71,21 @@ class MARLSafe(Agent):
             "buffer_latencies",
             "buffer_occupancies",
         ]
+        # Include requirements in the observation
+        requirements = np.array(
+            [
+                self.env.comm_env.slice_req["urllc"]["ue_throughput"],
+                self.env.comm_env.slice_req["urllc"]["latency"],
+                self.env.comm_env.slice_req["embb"]["ue_throughput"],
+                self.env.comm_env.slice_req["embb"]["latency"],
+                self.env.comm_env.slice_req["mmtc"]["ue_throughput"],
+                self.env.comm_env.slice_req["mmtc"]["latency"],
+            ]
+        )
+        formatted_obs_space["player_0"] = np.append(
+            formatted_obs_space["player_0"], requirements
+        )
+
         if normalization:
             normalization_factors = {
                 "pkt_throughputs": 50,
@@ -91,12 +106,26 @@ class MARLSafe(Agent):
                 axis=0,
             )
 
-        for intra_idx in np.arange(1, 4):  # Intra-slice TODO
+        for intra_idx in np.arange(1, 4):  # TODO Intra-slice
             formatted_obs_space[f"player_{intra_idx}"] = np.zeros(3)
 
         return formatted_obs_space
 
     def slice_average(self, obs_space: dict, metric: str) -> np.ndarray:
+        number_slices = obs_space["slice_ue_assoc"].shape[0]
+        slice_values = np.zeros(number_slices)
+        pkts_to_mbps = 8192 * 8 / 1e6 if metric in ["pkt_throughputs"] else 1
+        for slice_idx in np.arange(number_slices):
+            slice_values[slice_idx] = np.sum(
+                pkts_to_mbps
+                * obs_space[metric]
+                * obs_space["slice_ue_assoc"][slice_idx]
+            ) / np.sum(obs_space["slice_ue_assoc"][slice_idx])
+
+        return slice_values
+
+    def get_slice_metrics(self, obs_space: dict, metric: str) -> np.ndarray:
+        # TODO Define intra-slice metrics
         number_slices = obs_space["slice_ue_assoc"].shape[0]
         slice_values = np.zeros(number_slices)
         pkts_to_mbps = 8192 * 8 / 1e6 if metric in ["pkt_throughputs"] else 1
@@ -244,7 +273,7 @@ class MARLSafe(Agent):
                     spaces.Box(
                         low=0,
                         high=np.inf,
-                        shape=(9,),
+                        shape=(5 + 9,),
                         dtype=np.float64,
                     )
                     if idx == 0
