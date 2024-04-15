@@ -141,6 +141,17 @@ class MARLSafe(Agent):
             )
 
         for intra_idx in np.arange(1, 4):
+            slice_rbs_allocated = (
+                np.sum(
+                    np.sum(
+                        self.last_unformatted_obs[0]["sched_decision"], axis=2
+                    )[0]
+                    * self.last_unformatted_obs[0]["slice_ue_assoc"][
+                        intra_idx - 1
+                    ]
+                )
+                / self.num_available_rbs[0]
+            )
             requirements_intra = np.array(
                 [
                     self.env.comm_env.slice_req[
@@ -155,6 +166,7 @@ class MARLSafe(Agent):
                         slice_types_idx[intra_idx - 1]
                     ]["number_ues"]
                     / max_number_ues,
+                    slice_rbs_allocated,
                 ]
             )
             formatted_obs_space[f"player_{intra_idx}"] = np.append(
@@ -349,7 +361,7 @@ class MARLSafe(Agent):
                     else spaces.Box(
                         low=0,
                         high=np.inf,
-                        shape=(3 + 12,),
+                        shape=(4 + 12,),
                         dtype=np.float64,
                     )
                 )
