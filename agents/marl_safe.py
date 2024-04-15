@@ -62,24 +62,56 @@ class MARLSafe(Agent):
         self.last_unformatted_obs.appendleft(obs_space)
         formatted_obs_space = {
             "player_0": np.array([]),
-            "player_1": None,
-            "player_2": None,
-            "player_3": None,
+            "player_1": np.array([]),
+            "player_2": np.array([]),
+            "player_3": np.array([]),
         }
+        slice_types_idx = ["embb", "urllc", "mmtc"]
         hist_labels = [
             "pkt_throughputs",
             "buffer_latencies",
             "buffer_occupancies",
+            "spectral_efficiencies",
         ]
         # Include requirements in the observation
-        requirements = np.array(
+        max_throughput = np.max(
             [
                 self.env.comm_env.slice_req["urllc"]["ue_throughput"],
-                self.env.comm_env.slice_req["urllc"]["latency"],
                 self.env.comm_env.slice_req["embb"]["ue_throughput"],
-                self.env.comm_env.slice_req["embb"]["latency"],
                 self.env.comm_env.slice_req["mmtc"]["ue_throughput"],
+            ]
+        )
+        max_latency = np.max(
+            [
+                self.env.comm_env.slice_req["urllc"]["latency"],
+                self.env.comm_env.slice_req["embb"]["latency"],
                 self.env.comm_env.slice_req["mmtc"]["latency"],
+            ]
+        )
+        max_number_ues = np.max(
+            [
+                self.env.comm_env.slice_req["urllc"]["number_ues"],
+                self.env.comm_env.slice_req["embb"]["number_ues"],
+                self.env.comm_env.slice_req["mmtc"]["number_ues"],
+            ]
+        )
+        requirements = np.array(
+            [
+                self.env.comm_env.slice_req["embb"]["ue_throughput"]
+                / max_throughput,
+                self.env.comm_env.slice_req["embb"]["latency"] / max_latency,
+                self.env.comm_env.slice_req["embb"]["number_ues"]
+                / max_number_ues,
+                self.env.comm_env.slice_req["urllc"]["ue_throughput"]
+                / max_throughput,
+                self.env.comm_env.slice_req["urllc"]["latency"] / max_latency,
+                self.env.comm_env.slice_req["urllc"]["number_ues"]
+                / max_number_ues,
+                self.env.comm_env.slice_req["mmtc"]["ue_throughput"]
+                / max_throughput,
+                self.env.comm_env.slice_req["mmtc"]["latency"] / max_latency,
+                self.env.comm_env.slice_req["mmtc"]["number_ues"]
+                / max_number_ues,
             ]
         )
         formatted_obs_space["player_0"] = np.append(
@@ -91,12 +123,14 @@ class MARLSafe(Agent):
                 "pkt_throughputs": 50,
                 "buffer_latencies": 100,
                 "buffer_occupancies": 1,
+                "spectral_efficiencies": 30,
             }
         else:
             normalization_factors = {
                 "pkt_throughputs": 1,
                 "buffer_latencies": 1,
                 "buffer_occupancies": 1,
+                "spectral_efficiencies": 1,
             }
         for hist_label in hist_labels:
             formatted_obs_space["player_0"] = np.append(
@@ -106,8 +140,35 @@ class MARLSafe(Agent):
                 axis=0,
             )
 
-        for intra_idx in np.arange(1, 4):  # TODO Intra-slice
-            formatted_obs_space[f"player_{intra_idx}"] = np.zeros(3)
+        for intra_idx in np.arange(1, 4):
+            requirements_intra = np.array(
+                [
+                    self.env.comm_env.slice_req[
+                        slice_types_idx[intra_idx - 1]
+                    ]["ue_throughput"]
+                    / max_throughput,
+                    self.env.comm_env.slice_req[
+                        slice_types_idx[intra_idx - 1]
+                    ]["latency"]
+                    / max_latency,
+                    self.env.comm_env.slice_req[
+                        slice_types_idx[intra_idx - 1]
+                    ]["number_ues"]
+                    / max_number_ues,
+                ]
+            )
+            formatted_obs_space[f"player_{intra_idx}"] = np.append(
+                formatted_obs_space[f"player_{intra_idx}"], requirements_intra
+            )
+            for hist_label in hist_labels:
+                formatted_obs_space[f"player_{intra_idx}"] = np.append(
+                    formatted_obs_space[f"player_{intra_idx}"],
+                    self.get_slice_metrics(
+                        obs_space, hist_label, intra_idx - 1
+                    )
+                    / normalization_factors[hist_label],
+                    axis=0,
+                )
 
         return formatted_obs_space
 
@@ -115,33 +176,41 @@ class MARLSafe(Agent):
         number_slices = obs_space["slice_ue_assoc"].shape[0]
         slice_values = np.zeros(number_slices)
         pkts_to_mbps = 8192 * 8 / 1e6 if metric in ["pkt_throughputs"] else 1
+        obs_metric = (
+            obs_space[metric]
+            if metric != "spectral_efficiencies"
+            else np.mean(obs_space[metric][0, :, :], axis=1)
+        )
         for slice_idx in np.arange(number_slices):
             slice_values[slice_idx] = np.sum(
                 pkts_to_mbps
-                * obs_space[metric]
+                * obs_metric
                 * obs_space["slice_ue_assoc"][slice_idx]
             ) / np.sum(obs_space["slice_ue_assoc"][slice_idx])
 
         return slice_values
 
-    def get_slice_metrics(self, obs_space: dict, metric: str) -> np.ndarray:
-        # TODO Define intra-slice metrics
-        number_slices = obs_space["slice_ue_assoc"].shape[0]
-        slice_values = np.zeros(number_slices)
+    def get_slice_metrics(
+        self, obs_space: dict, metric: str, slice_idx: int
+    ) -> np.ndarray:
         pkts_to_mbps = 8192 * 8 / 1e6 if metric in ["pkt_throughputs"] else 1
-        for slice_idx in np.arange(number_slices):
-            slice_values[slice_idx] = np.sum(
-                pkts_to_mbps
-                * obs_space[metric]
-                * obs_space["slice_ue_assoc"][slice_idx]
-            ) / np.sum(obs_space["slice_ue_assoc"][slice_idx])
+        obs_metric = (
+            obs_space[metric]
+            if metric != "spectral_efficiencies"
+            else np.mean(obs_space[metric][0, :, :], axis=1)
+        )
+        slice_ues = obs_space["slice_ue_assoc"][slice_idx].nonzero()[0]
+        avg_value = np.mean(pkts_to_mbps * obs_metric[slice_ues])
+        max_value = np.max(pkts_to_mbps * obs_metric[slice_ues])
+        min_value = np.min(pkts_to_mbps * obs_metric[slice_ues])
 
-        return slice_values
+        return np.array([avg_value, max_value, min_value])
 
     def calculate_reward(self, obs_space: dict) -> dict:
         assert isinstance(
             self.env, MARLCustomEnv
         ), "The environment must be an instance of the CommunicationEnv class"
+        # TODO Change all the positional variables for static values
         metric_slices = self.obs_space_format(obs_space, False)
         metric_slices = metric_slices["player_0"]
         maximum_buffer_latency = 100
@@ -273,14 +342,14 @@ class MARLSafe(Agent):
                     spaces.Box(
                         low=0,
                         high=np.inf,
-                        shape=(5 + 9,),
+                        shape=(9 + 12,),
                         dtype=np.float64,
                     )
                     if idx == 0
                     else spaces.Box(
                         low=0,
                         high=np.inf,
-                        shape=(3,),
+                        shape=(3 + 12,),
                         dtype=np.float64,
                     )
                 )
