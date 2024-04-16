@@ -222,9 +222,9 @@ class MARLSafe(Agent):
         assert isinstance(
             self.env, MARLCustomEnv
         ), "The environment must be an instance of the CommunicationEnv class"
-        # TODO Change all the positional variables for static values
-        metric_slices = self.obs_space_format(obs_space, False)
-        metric_slices = metric_slices["player_0"]
+        slice_types_idx = {"embb":0, "urllc":1, "mmtc":2}
+        slice_throughputs = self.slice_average(obs_space, "pkt_throughputs")
+        slice_latencies = self.slice_average(obs_space, "buffer_latencies")
         maximum_buffer_latency = 100
         reward = {
             "urllc": {
@@ -261,14 +261,40 @@ class MARLSafe(Agent):
         ]
         urllc_req_latency = self.env.comm_env.slice_req["urllc"]["latency"]
         reward["urllc"]["throughput"]["value"] -= (
-            1 - metric_slices[1] / urllc_req_throughput
-            if metric_slices[1] < urllc_req_throughput
+            1 - slice_throughputs[slice_types_idx["urllc"]] / urllc_req_throughput
+            if slice_throughputs[slice_types_idx["urllc"]] < urllc_req_throughput
             else 0
         )
         reward["urllc"]["latency"]["value"] -= (
-            (metric_slices[4] - urllc_req_latency)
+            (slice_latencies[slice_types_idx["urllc"]] - urllc_req_latency)
             / (maximum_buffer_latency - urllc_req_latency)
-            if metric_slices[4] > urllc_req_latency
+            if slice_latencies[slice_types_idx["urllc"]] > urllc_req_latency
+            else 0
+        )
+
+        # eMBB
+        embb_req_throughput = self.env.comm_env.slice_req["embb"][
+            "ue_throughput"
+        ]
+        embb_req_latency = self.env.comm_env.slice_req["embb"]["latency"]
+        reward["embb"]["throughput"]["value"] -= (
+            1 - slice_throughputs[slice_types_idx["embb"]] / embb_req_throughput
+            if slice_throughputs[slice_types_idx["embb"]] < embb_req_throughput
+            else 0
+        )
+        reward["embb"]["latency"]["value"] -= (
+            (slice_latencies[slice_types_idx["embb"]] - embb_req_latency)
+            / (maximum_buffer_latency - embb_req_latency)
+            if slice_latencies[slice_types_idx["embb"]] > embb_req_latency
+            else 0
+        )
+
+        # mMTC
+        mmtc_req_latency = self.env.comm_env.slice_req["mmtc"]["latency"]
+        reward["mmtc"]["latency"]["value"] -= (
+            (slice_latencies[slice_types_idx["mmtc"]] - mmtc_req_latency)
+            / (maximum_buffer_latency - mmtc_req_latency)
+            if slice_latencies[slice_types_idx["mmtc"]] > mmtc_req_latency
             else 0
         )
 
@@ -277,32 +303,6 @@ class MARLSafe(Agent):
             + reward["urllc"]["latency"]["value"],
             0,
         ):
-            # eMBB
-            embb_req_throughput = self.env.comm_env.slice_req["embb"][
-                "ue_throughput"
-            ]
-            embb_req_latency = self.env.comm_env.slice_req["embb"]["latency"]
-            reward["embb"]["throughput"]["value"] -= (
-                1 - metric_slices[0] / embb_req_throughput
-                if metric_slices[0] < embb_req_throughput
-                else 0
-            )
-            reward["embb"]["latency"]["value"] -= (
-                (metric_slices[3] - embb_req_latency)
-                / (maximum_buffer_latency - embb_req_latency)
-                if metric_slices[3] > embb_req_latency
-                else 0
-            )
-
-            # mMTC
-            mmtc_req_latency = self.env.comm_env.slice_req["mmtc"]["latency"]
-            reward["mmtc"]["latency"]["value"] -= (
-                (metric_slices[5] - mmtc_req_latency)
-                / (maximum_buffer_latency - mmtc_req_latency)
-                if metric_slices[5] > mmtc_req_latency
-                else 0
-            )
-
             total_reward = (
                 reward["embb"]["throughput"]["weight"]
                 * reward["embb"]["throughput"]["value"]
@@ -318,11 +318,11 @@ class MARLSafe(Agent):
                 + reward["urllc"]["latency"]["value"]
                 * reward["urllc"]["latency"]["weight"]
             ) - 1
-        reward_dict = {  # TODO
+        reward_dict = {
             "player_0": total_reward,
-            "player_1": 0,
-            "player_2": 0,
-            "player_3": 0,
+            "player_1": reward["embb"]["throughput"]["value"] + reward["embb"]["latency"]["value"],
+            "player_2": reward["urllc"]["throughput"]["value"] + reward["urllc"]["latency"]["value"],
+            "player_3": reward["mmtc"]["latency"]["value"],
         }
 
         return reward_dict
