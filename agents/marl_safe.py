@@ -59,6 +59,9 @@ class MARLSafe(Agent):
     def obs_space_format(
         self, obs_space: dict, normalization: bool = True
     ) -> dict:
+        assert isinstance(
+            self.env, MARLCustomEnv
+        ), "The environment must be an instance of the CommunicationEnv class"
         self.last_unformatted_obs.appendleft(obs_space)
         formatted_obs_space = {
             "player_0": np.array([]),
@@ -222,7 +225,7 @@ class MARLSafe(Agent):
         assert isinstance(
             self.env, MARLCustomEnv
         ), "The environment must be an instance of the CommunicationEnv class"
-        slice_types_idx = {"embb":0, "urllc":1, "mmtc":2}
+        slice_types_idx = {"embb": 0, "urllc": 1, "mmtc": 2}
         slice_throughputs = self.slice_average(obs_space, "pkt_throughputs")
         slice_latencies = self.slice_average(obs_space, "buffer_latencies")
         maximum_buffer_latency = 100
@@ -261,8 +264,11 @@ class MARLSafe(Agent):
         ]
         urllc_req_latency = self.env.comm_env.slice_req["urllc"]["latency"]
         reward["urllc"]["throughput"]["value"] -= (
-            1 - slice_throughputs[slice_types_idx["urllc"]] / urllc_req_throughput
-            if slice_throughputs[slice_types_idx["urllc"]] < urllc_req_throughput
+            1
+            - slice_throughputs[slice_types_idx["urllc"]]
+            / urllc_req_throughput
+            if slice_throughputs[slice_types_idx["urllc"]]
+            < urllc_req_throughput
             else 0
         )
         reward["urllc"]["latency"]["value"] -= (
@@ -278,7 +284,8 @@ class MARLSafe(Agent):
         ]
         embb_req_latency = self.env.comm_env.slice_req["embb"]["latency"]
         reward["embb"]["throughput"]["value"] -= (
-            1 - slice_throughputs[slice_types_idx["embb"]] / embb_req_throughput
+            1
+            - slice_throughputs[slice_types_idx["embb"]] / embb_req_throughput
             if slice_throughputs[slice_types_idx["embb"]] < embb_req_throughput
             else 0
         )
@@ -320,8 +327,10 @@ class MARLSafe(Agent):
             ) - 1
         reward_dict = {
             "player_0": total_reward,
-            "player_1": reward["embb"]["throughput"]["value"] + reward["embb"]["latency"]["value"],
-            "player_2": reward["urllc"]["throughput"]["value"] + reward["urllc"]["latency"]["value"],
+            "player_1": reward["embb"]["throughput"]["value"]
+            + reward["embb"]["latency"]["value"],
+            "player_2": reward["urllc"]["throughput"]["value"]
+            + reward["urllc"]["latency"]["value"],
             "player_3": reward["mmtc"]["latency"]["value"],
         }
 

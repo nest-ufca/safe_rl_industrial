@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from agents.marl_safe import MARLSafe
 from associations.industrial import IndustrialAssociation
+from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannels
 from channels.simple import SimpleChannel
 from marl_custom_env import MARLCustomEnv
@@ -30,7 +31,7 @@ env_config = {
     "seed": 10,
     "seed_test": 15,
     "agent_class": MARLSafe,
-    "channel_class": SimpleChannel,  # QuadrigaChannels,
+    "channel_class": MimicQuadriga,  # QuadrigaChannels,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
     "association_class": IndustrialAssociation,
