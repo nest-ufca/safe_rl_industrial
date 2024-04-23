@@ -68,9 +68,9 @@ class MARLCustomEnv(MultiAgentEnv):
                     truncated = False
         # IMPORTANT: We are returning only the information for the last step
         # but we could also make an average and return
-        print(
-            f"Ep: {self.comm_env.episode_number}, Step: {self.comm_env.step_number}"
-        )
+        # print(
+        #     f"Ep: {self.comm_env.episode_number}, Step: {self.comm_env.step_number}"
+        # )
         return obs, rewards, terminated, truncated, info
 
     def set_agent_functions(

@@ -39,7 +39,7 @@ env_config = {
     "root_path": str(getcwd()),
     "training_episodes": 140,
     "max_episode_number": 140,
-    "training_epochs": 1,
+    "training_epochs": 10,
     "testing_episodes": 30,  # TODO 1000,
 }
 
@@ -185,6 +185,7 @@ marl_custom = env_creator(env_config)
 marl_custom.comm_env.max_number_episodes = (
     env_config["testing_episodes"] + env_config["training_episodes"]
 )
+marl_custom.comm_env.save_hist = True  # Save metrics for test
 obs, _ = marl_custom.reset(
     seed=env_config["seed_test"],
     options={"initial_episode": env_config["training_episodes"]},
