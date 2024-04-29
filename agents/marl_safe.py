@@ -14,13 +14,13 @@ from agents.common import (
     scores_to_rbs,
 )
 from marl_custom_env import MARLCustomEnv
-from sixg_radio_mgmt import Agent
+from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
 class MARLSafe(Agent):
     def __init__(
         self,
-        env: MARLCustomEnv,
+        env: Union[MARLCustomEnv, MARLCommEnv],
         max_number_ues: int,
         max_number_slices: int,
         max_number_basestations: int,
@@ -60,7 +60,7 @@ class MARLSafe(Agent):
         self, obs_space: dict, normalization: bool = True
     ) -> dict:
         assert isinstance(
-            self.env, MARLCustomEnv
+            self.env, (MARLCustomEnv, MARLCommEnv)
         ), "The environment must be an instance of the CommunicationEnv class"
         self.last_unformatted_obs.appendleft(obs_space)
         formatted_obs_space = {
@@ -223,7 +223,7 @@ class MARLSafe(Agent):
 
     def calculate_reward(self, obs_space: dict) -> dict:
         assert isinstance(
-            self.env, MARLCustomEnv
+            self.env, (MARLCustomEnv, MARLCommEnv)
         ), "The environment must be an instance of the CommunicationEnv class"
         slice_types_idx = {"embb": 0, "urllc": 1, "mmtc": 2}
         slice_throughputs = self.slice_average(obs_space, "pkt_throughputs")
@@ -386,7 +386,7 @@ class MARLSafe(Agent):
     ) -> np.ndarray:
         assert isinstance(action, dict), "Action must be a Dict"
         assert isinstance(
-            self.env, MARLCustomEnv
+            self.env, (MARLCustomEnv, MARLCommEnv)
         ), "The environment must be an instance of the MARLCustomEnv"
         sched_decision = np.array(
             [

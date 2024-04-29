@@ -367,8 +367,8 @@ def gen_results_violations(
                 )
                 mean_violations = np.mean(slice_episodes_violations, axis=0)
                 std_violations = np.std(slice_episodes_violations, axis=0)
-                agent_name = "SSR" if agent == "ssr" else "Proposed Method"
-                plt.plot(mean_violations, label=f"{agent_name}, {slice}")
+                # agent_name = "SSR" if agent == "ssr" else "Proposed Method"
+                plt.plot(mean_violations, label=f"{agent}, {slice}")
                 plt.fill_between(
                     np.arange(std_violations.shape[0]),
                     mean_violations - std_violations,
@@ -645,13 +645,13 @@ metrics = [
     "total_network_requested_throughput",
     "slice_allocation",
 ]
-episodes = np.arange(190, 200)
+episodes = np.arange(140, 155)
 slices = np.arange(3)
 
 # gen_results(scenario_names, agent_names, episodes, metrics, slices)
-episodes = np.arange(160, 200)
-slice_names = ["urllc", "total"]
+slice_names = ["total", "embb", "urllc", "mmtc"]
 agent_names = ["ssr_protect", "ssr"]
+# agent_names = ["ssr_protect"]
 gen_results_violations(scenario_names, agent_names, episodes, slice_names)
 metrics = ["buffer_latencies", "pkt_throughputs"]
 slice_names = ["embb", "urllc", "mmtc"]

@@ -19,6 +19,7 @@ from channels.quadriga import QuadrigaChannels
 from channels.simple import SimpleChannel
 from marl_custom_env import MARLCustomEnv
 from mobilities.simple import SimpleMobility
+from sixg_radio_mgmt import MARLCommEnv
 from traffics.industrial import IndustrialTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
@@ -26,12 +27,13 @@ training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
+env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
 agent = "marl_safe"
 env_config = {
     "seed": 10,
     "seed_test": 15,
     "agent_class": MARLSafe,
-    "channel_class": MimicQuadriga,  # QuadrigaChannels,
+    "channel_class": QuadrigaChannels,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
     "association_class": IndustrialAssociation,
@@ -42,12 +44,13 @@ env_config = {
     "training_epochs": 10,
     "testing_episodes": 30,  # TODO 1000,
 }
+EnvClass = MARLCustomEnv if env_type == "4step" else MARLCommEnv
 
 ray.init(local_mode=debug_mode)
 
 
 def env_creator(env_config):
-    marl_custom = MARLCustomEnv(
+    marl_custom = EnvClass(
         ChannelClass=env_config["channel_class"],
         TrafficClass=env_config["traffic_class"],
         MobilityClass=env_config["mobility_class"],
@@ -190,9 +193,17 @@ obs, _ = marl_custom.reset(
     seed=env_config["seed_test"],
     options={"initial_episode": env_config["training_episodes"]},
 )
+if env_type == "4step":
+    assert isinstance(marl_custom, MARLCustomEnv), "MARLCustomEnv expected"
+    aggregate_actions = marl_custom.aggregate_actions_steps
+else:
+    aggregate_actions = 1
 for step in tqdm(
     np.arange(
-        marl_custom.comm_env.max_number_steps * env_config["testing_episodes"]
+        np.floor(
+            marl_custom.comm_env.max_number_steps / aggregate_actions
+        ).astype(int)
+        * env_config["testing_episodes"]
     ),
     desc="Testing...",
 ):

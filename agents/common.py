@@ -1,8 +1,10 @@
 from collections import deque
+from typing import Union
 
 import numpy as np
 
 from marl_custom_env import MARLCustomEnv
+from sixg_radio_mgmt import MARLCommEnv
 
 
 def scores_to_rbs(
@@ -126,7 +128,7 @@ def proportional_fairness(
     slice_idx: int,
     rbs_per_slice: np.ndarray,
     slice_ues: np.ndarray,
-    env: MARLCustomEnv,
+    env: Union[MARLCustomEnv, MARLCommEnv],
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
@@ -207,7 +209,7 @@ def max_throughput(
     slice_idx: int,
     rbs_per_slice: np.ndarray,
     slice_ues: np.ndarray,
-    env: MARLCustomEnv,
+    env: Union[MARLCustomEnv, MARLCommEnv],
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
