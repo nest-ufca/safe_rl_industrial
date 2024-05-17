@@ -13,6 +13,7 @@ from ray.tune.registry import register_env
 from tqdm import tqdm
 
 from agents.marl_safe import MARLSafe
+from agents.ssr_protect_marl import SSRProtectMARL
 from associations.industrial import IndustrialAssociation
 from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannels
@@ -36,7 +37,7 @@ agent = "marl_safe"
 env_config = {
     "seed": 10,
     "seed_test": 15,
-    "agent_class": MARLSafe,
+    "agent_class": SSRProtectMARL,  # MARLSafe,
     "channel_class": MimicQuadriga,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
