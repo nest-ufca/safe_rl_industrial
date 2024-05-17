@@ -23,6 +23,10 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.industrial import IndustrialTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
+train_batch_size = 2048
+eps_per_iteration = np.rint(train_batch_size // 1000).astype(int)
+
+
 training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
@@ -33,16 +37,19 @@ env_config = {
     "seed": 10,
     "seed_test": 15,
     "agent_class": MARLSafe,
-    "channel_class": QuadrigaChannels,
+    "channel_class": MimicQuadriga,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
     "association_class": IndustrialAssociation,
     "scenario": "industrial",
     "root_path": str(getcwd()),
-    "training_episodes": 140,
-    "max_episode_number": 140,
-    "training_epochs": 10,
+    "training_episodes": 70,
+    "max_episode_number": 70,
+    "training_epochs": 50,
     "testing_episodes": 30,  # TODO 1000,
+    "episode_evaluation_freq": 70,
+    "number_evaluation_episodes": 30,
+    "eval_initial_env_episode": 70,
 }
 EnvClass = MARLCustomEnv if env_type == "4step" else MARLCommEnv
 
@@ -144,6 +151,29 @@ if training_flag:
             grad_clip=0.5,  # SB3 max_grad_norm TODO
             # kl_target=0.00001,  # SB3 target_kl
         )
+        .evaluation(
+            evaluation_interval=np.rint(
+                env_config["episode_evaluation_freq"] / eps_per_iteration
+            ).astype(
+                int
+            ),  # Convert to iterations
+            evaluation_duration=env_config["number_evaluation_episodes"],
+            evaluation_duration_unit="episodes",
+            evaluation_config={
+                "explore": False,
+                "env_config": dict(
+                    env_config,
+                    initial_episode_number=env_config[
+                        "eval_initial_env_episode"
+                    ],
+                    max_episode_number=(
+                        env_config["eval_initial_env_episode"]
+                        + env_config["number_evaluation_episodes"]
+                    ),
+                ),
+            },
+            always_attach_evaluation_results=True,
+        )
         .experimental(_enable_new_api_stack=False)
         .debugging(
             seed=env_config["seed"],
@@ -178,12 +208,10 @@ analysis = tune.ExperimentAnalysis(
 )
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
-    analysis.trials[0], "episode_reward_mean", "max"
+    analysis.trials[0], "evaluation/episode_reward_mean", "max"
 )
 assert best_checkpoint is not None, "Best checkpoint is None"
-last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
-assert last_checkpoint is not None, "Last checkpoint is None"
-algo = Algorithm.from_checkpoint(last_checkpoint)
+algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_custom = env_creator(env_config)
 marl_custom.comm_env.max_number_episodes = (
     env_config["testing_episodes"] + env_config["training_episodes"]

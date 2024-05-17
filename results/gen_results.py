@@ -446,7 +446,11 @@ def gen_results_histogram(
         "urllc": 1,
         "mmtc": 2,
     }
-    color = {"ssr_protect": "tab:blue", "ssr": "tab:red"}
+    color = {
+        "ssr_protect": "tab:blue",
+        "ssr": "tab:red",
+        "marl_safe": "tab:green",
+    }
     markers = {"embb": "o", "urllc": "s", "mmtc": "*"}
     ylabel = "Cumulative distribution function (CDF)"
     xlabel = ""
@@ -645,12 +649,12 @@ metrics = [
     "total_network_requested_throughput",
     "slice_allocation",
 ]
-episodes = np.arange(140, 155)
+episodes = np.arange(70, 100)
 slices = np.arange(3)
 
 # gen_results(scenario_names, agent_names, episodes, metrics, slices)
 slice_names = ["total", "embb", "urllc", "mmtc"]
-agent_names = ["ssr_protect", "ssr"]
+agent_names = ["marl_safe", "ssr_protect"]  # , "ssr_protect", "ssr"]
 # agent_names = ["ssr_protect"]
 gen_results_violations(scenario_names, agent_names, episodes, slice_names)
 metrics = ["buffer_latencies", "pkt_throughputs"]

@@ -15,16 +15,16 @@ from sixg_radio_mgmt import CommunicationEnv
 from traffics.industrial import IndustrialTraffic
 
 scenarios = ["industrial"]
-agents = ["ssr_protect", "ssr"]
+agents = ["ssr_protect"]  # , "ssr"]
 # agents = ["ssr"]
-env_type = "4step"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
+env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
 EnvClass = CustomEnv if env_type == "4step" else CommunicationEnv
 
 seed = 10
 for scenario in scenarios:
     for agent_name in agents:
         custom_env = EnvClass(
-            ChannelClass=QuadrigaChannels,
+            ChannelClass=MimicQuadriga,
             TrafficClass=IndustrialTraffic,
             MobilityClass=SimpleMobility,
             AssociationClass=IndustrialAssociation,
@@ -99,7 +99,7 @@ for scenario in scenarios:
         # check_env(comm_env)
         print(f"\n\n########### Agent: {agent_name} ###########")
         print("########### TRAIN ###########")
-        train_episodes = 140
+        train_episodes = 70
         max_number_steps = (
             custom_env.comm_env.max_number_steps
             if isinstance(custom_env, CustomEnv)
@@ -113,7 +113,7 @@ for scenario in scenarios:
         steps_per_episode = np.floor(
             max_number_steps / aggregate_steps
         ).astype(int)
-        train_runs = 2
+        train_runs = 10
         total_number_steps = train_episodes * steps_per_episode * train_runs
         if isinstance(custom_env, CustomEnv):
             custom_env.comm_env.max_number_episodes = train_episodes
@@ -123,7 +123,7 @@ for scenario in scenarios:
 
         # Test
         print("########### TEST ###########")
-        max_test_episodes = 200
+        max_test_episodes = 100
         if isinstance(custom_env, CustomEnv):
             custom_env.comm_env.max_number_episodes = max_test_episodes
             obs = custom_env.comm_env.reset(

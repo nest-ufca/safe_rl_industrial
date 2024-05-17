@@ -148,7 +148,7 @@ class MARLSafe(Agent):
                 np.sum(
                     np.sum(
                         self.last_unformatted_obs[0]["sched_decision"], axis=2
-                    )[0]
+                    ).squeeze()
                     * self.last_unformatted_obs[0]["slice_ue_assoc"][
                         intra_idx - 1
                     ]
@@ -407,6 +407,7 @@ class MARLSafe(Agent):
             ].nonzero()[0]
             if np.isclose(action_rbs[player_idx - 1], 0):
                 continue
+            action[f"player_{player_idx}"] = 0  # TODO Remove this line
             match action[f"player_{player_idx}"]:
                 case 0:
                     sched_decision = round_robin(
