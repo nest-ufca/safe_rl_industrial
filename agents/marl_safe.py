@@ -407,7 +407,6 @@ class MARLSafe(Agent):
             ].nonzero()[0]
             if np.isclose(action_rbs[player_idx - 1], 0):
                 continue
-            action[f"player_{player_idx}"] = 0  # TODO Remove this line
             match action[f"player_{player_idx}"]:
                 case 0:
                     sched_decision = round_robin(

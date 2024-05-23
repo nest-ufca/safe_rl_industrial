@@ -24,20 +24,21 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.industrial import IndustrialTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
-train_batch_size = 2048
-eps_per_iteration = np.rint(train_batch_size // 1000).astype(int)
+train_batch_size = 256
+eps_per_iteration = train_batch_size / 1000
 
 
 training_flag = True  # False for reading from checkpoint
 debug_mode = (
-    True  # When true executes in a local mode where GPU cannot be used
+    False  # When true executes in a local mode where GPU cannot be used
 )
+enable_restore = True  # Restore agent from checkpoint
 env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
-agent = "marl_safe"
+agent = "marl_safe_sac"
 env_config = {
     "seed": 10,
     "seed_test": 15,
-    "agent_class": SSRProtectMARL,  # MARLSafe,
+    "agent_class": MARLSafe,  # SSRProtectMARL in case you want to test with same agent from WCNPS 2023
     "channel_class": MimicQuadriga,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
@@ -111,7 +112,7 @@ env_config["agent"] = agent
 # Training
 if training_flag:
     algo_config = (
-        PPOConfig()  # TODO
+        SACConfig()
         .environment(
             env="marl_custom",
             env_config=env_config,
@@ -139,18 +140,11 @@ if training_flag:
         )
         .training(
             lr=0.0003,  # SB3 LR
-            train_batch_size=2048,  # SB3 n_steps
-            sgd_minibatch_size=64,  # type: ignore SB3 batch_size
-            num_sgd_iter=10,  # type: ignore SB3 n_epochs
+            train_batch_size=train_batch_size,  # SB3 n_steps
             gamma=0.99,  # SB3 gamma
-            lambda_=0.95,  # type: ignore # SB3 gae_lambda
-            clip_param=0.2,  # type: ignore SB3 clip_range,
-            vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
-            use_gae=True,  # type: ignore SB3 normalize_advantage
-            entropy_coeff=0.01,  # type: ignore SB3 ent_coef
-            vf_loss_coeff=0.5,  # type: ignore SB3 vf_coef
-            grad_clip=0.5,  # SB3 max_grad_norm TODO
-            # kl_target=0.00001,  # SB3 target_kl
+            n_step=1,  # type: ignore
+            target_network_update_freq=1,  # type: ignore
+            num_steps_sampled_before_learning_starts=100,  # type: ignore
         )
         .evaluation(
             evaluation_interval=np.rint(
@@ -179,29 +173,38 @@ if training_flag:
         .debugging(
             seed=env_config["seed"],
         )
+        .reporting(
+            min_sample_timesteps_per_iteration=train_batch_size,
+        )
     )
-    algo_config["model"]["fcnet_hiddens"] = [
-        64,
-        64,
-    ]  # Set neural network size
     stop = {
         "episodes_total": env_config["training_episodes"]
         * env_config["training_epochs"],
     }
-    results = tune.Tuner(
-        "PPO",  # TODO
-        param_space=algo_config.to_dict(),
-        run_config=air.RunConfig(
-            storage_path=f"{read_checkpoint}/{env_config['scenario']}/",
-            name=env_config["agent"],
-            stop=stop,
-            verbose=2,
-            checkpoint_config=air.CheckpointConfig(
-                checkpoint_frequency=3,
-                checkpoint_at_end=True,
+    if enable_restore and tune.Tuner.can_restore(
+        f"{read_checkpoint}/{env_config['scenario']}/{env_config['agent']}/"
+    ):
+        tuner = tune.Tuner.restore(
+            f"{read_checkpoint}/{env_config['scenario']}/{env_config['agent']}/",
+            trainable="SAC",
+            param_space=algo_config.to_dict(),
+        )
+    else:
+        tuner = tune.Tuner(
+            "SAC",
+            param_space=algo_config.to_dict(),
+            run_config=air.RunConfig(
+                storage_path=f"{read_checkpoint}/{env_config['scenario']}/",
+                name=env_config["agent"],
+                stop=stop,
+                verbose=2,
+                checkpoint_config=air.CheckpointConfig(
+                    checkpoint_frequency=3,
+                    checkpoint_at_end=True,
+                ),
             ),
-        ),
-    ).fit()
+        )
+    results = tuner.fit()
 
 # Testing
 analysis = tune.ExperimentAnalysis(
