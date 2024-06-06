@@ -18,10 +18,11 @@ from associations.industrial import IndustrialAssociation
 from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannels
 from channels.simple import SimpleChannel
-from marl_custom_env import MARLCustomEnv
 from mobilities.simple import SimpleMobility
-from sixg_radio_mgmt import MARLCommEnv
 from traffics.industrial import IndustrialTraffic
+from custom_env import CustomEnv
+from sixg_radio_mgmt import CommunicationEnv
+from agents.ssr_protect_ray import SSRProtectRay
 
 read_checkpoint = str(Path("./ray_results/").resolve())
 train_batch_size = 256
@@ -33,12 +34,11 @@ debug_mode = (
     False  # When true executes in a local mode where GPU cannot be used
 )
 enable_restore = True  # Restore agent from checkpoint
-env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
-agent = "marl_safe_sac"
+agent = "ray_protect"
 env_config = {
     "seed": 10,
     "seed_test": 15,
-    "agent_class": MARLSafe,  # SSRProtectMARL in case you want to test with same agent from WCNPS 2023
+    "agent_class": SSRProtectRay,
     "channel_class": MimicQuadriga,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
@@ -48,18 +48,18 @@ env_config = {
     "training_episodes": 70,
     "max_episode_number": 70,
     "training_epochs": 4,
-    "testing_episodes": 30,  # TODO 1000,
+    "testing_episodes": 30,
     "episode_evaluation_freq": 70,
     "number_evaluation_episodes": 30,
     "eval_initial_env_episode": 70,
 }
-EnvClass = MARLCustomEnv if env_type == "4step" else MARLCommEnv
+EnvClass = CommunicationEnv
 
 ray.init(local_mode=debug_mode)
 
 
 def env_creator(env_config):
-    marl_custom = EnvClass(
+    env = EnvClass(
         ChannelClass=env_config["channel_class"],
         TrafficClass=env_config["traffic_class"],
         MobilityClass=env_config["mobility_class"],
@@ -80,13 +80,13 @@ def env_creator(env_config):
         ),
     )
     agent = env_config["agent_class"](
-        marl_custom,
-        marl_custom.comm_env.max_number_ues,
-        marl_custom.comm_env.max_number_slices,
-        marl_custom.comm_env.max_number_basestations,
-        marl_custom.comm_env.num_available_rbs,
+        env,
+        env.max_number_ues,
+        env.max_number_slices,
+        env.max_number_basestations,
+        env.num_available_rbs,
     )
-    marl_custom.set_agent_functions(
+    env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,
@@ -94,17 +94,11 @@ def env_creator(env_config):
         agent.get_action_space(),
     )
 
-    return marl_custom
+    return env
 
 
 # Ray RLlib
-register_env("marl_custom", lambda config: env_creator(config))
-
-
-def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
-    agent_idx = int(agent_id.partition("_")[2])
-
-    return "inter_slice_sched" if agent_idx == 0 else "intra_slice_sched"
+register_env("env", lambda config: env_creator(config))
 
 
 env_config["agent"] = agent
@@ -114,29 +108,16 @@ if training_flag:
     algo_config = (
         SACConfig()
         .environment(
-            env="marl_custom",
+            env="env",
             env_config=env_config,
             is_atari=False,
             disable_env_checking=True,
-        )
-        .multi_agent(
-            policies={
-                "inter_slice_sched": PolicySpec(),
-                "intra_slice_sched": PolicySpec(),
-            },
-            policy_mapping_fn=policy_mapping_fn,
-            count_steps_by="env_steps",
         )
         .framework("torch")
         .rollouts(
             num_rollout_workers=0,
             num_envs_per_worker=1,
             preprocessor_pref=None,
-        )
-        .resources(
-            num_gpus=1,
-            num_gpus_per_worker=1,
-            num_gpus_per_learner_worker=1,
         )
         .training(
             lr=0.0003,  # SB3 LR
@@ -216,41 +197,33 @@ best_checkpoint = analysis.get_best_checkpoint(
 )
 assert best_checkpoint is not None, "Best checkpoint is None"
 algo = Algorithm.from_checkpoint(best_checkpoint)
-marl_custom = env_creator(env_config)
-marl_custom.comm_env.max_number_episodes = (
+env = env_creator(env_config)
+env.max_number_episodes = (
     env_config["testing_episodes"] + env_config["training_episodes"]
 )
-marl_custom.comm_env.save_hist = True  # Save metrics for test
-obs, _ = marl_custom.reset(
+env.save_hist = True  # Save metrics for test
+obs, _ = env.reset(
     seed=env_config["seed_test"],
     options={"initial_episode": env_config["training_episodes"]},
 )
-if env_type == "4step":
-    assert isinstance(marl_custom, MARLCustomEnv), "MARLCustomEnv expected"
-    aggregate_actions = marl_custom.aggregate_actions_steps
-else:
-    aggregate_actions = 1
+aggregate_actions = 1
 for step in tqdm(
     np.arange(
-        np.floor(
-            marl_custom.comm_env.max_number_steps / aggregate_actions
-        ).astype(int)
+        np.floor(env.max_number_steps / aggregate_actions).astype(int)
         * env_config["testing_episodes"]
     ),
     desc="Testing...",
 ):
     action = {}
-    assert isinstance(obs, dict), "Observation must be a dict"
-    for agent_id, agent_obs in obs.items():
-        policy_id = policy_mapping_fn(agent_id)
-        action[agent_id] = algo.compute_single_action(
-            agent_obs,
-            policy_id=policy_id,
-            explore=False,
-        )
-    obs, reward, terminated, truncated, info = marl_custom.step(action)
-    assert isinstance(terminated, dict), "Termination must be a dict"
-    if terminated["__all__"]:
-        obs, _ = marl_custom.reset()
+    assert isinstance(obs, np.ndarray), "Observation must be a Numpy array"
+    action = algo.compute_single_action(
+        obs,
+        explore=False,
+    )
+    assert isinstance(action, np.ndarray), "Action must be a Numpy array"
+    obs, reward, terminated, truncated, info = env.step(action)
+    assert isinstance(terminated, bool), "Termination must be a bool"
+    if terminated:
+        obs, _ = env.reset()
 
 ray.shutdown()
