@@ -140,9 +140,9 @@ def proportional_fairness(
     throughput_available = np.minimum(
         spectral_eff
         * (
-            rbs_per_slice[slice_idx]
-            * env.comm_env.bandwidths[0]
-            / num_available_rbs[0]
+            float(rbs_per_slice[slice_idx])
+            * float(env.comm_env.bandwidths[0])
+            / float(num_available_rbs[0])
         )
         / slice_ues.shape[0],
         buffer_occ
@@ -221,9 +221,9 @@ def max_throughput(
     throughput_available = np.minimum(
         spectral_eff
         * (
-            rbs_per_slice[slice_idx]
-            * env.comm_env.bandwidths[0]
-            / num_available_rbs[0]
+            float(rbs_per_slice[slice_idx])
+            * float(env.comm_env.bandwidths[0])
+            / float(num_available_rbs[0])
         )
         / slice_ues.shape[0],
         buffer_occ
