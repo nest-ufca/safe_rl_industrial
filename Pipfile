@@ -19,7 +19,6 @@ optuna = "*"
 joblib = "*"
 pettingzoo = "*"
 pyarrow = "*"
-tree = "*"
 dm-tree = "*"
 typer = "*"
 ray = {extras = ["rllib"], version = "*"}
