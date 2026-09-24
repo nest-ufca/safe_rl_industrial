@@ -30,7 +30,7 @@ eps_per_iteration = train_batch_size / 1000
 
 training_flag = True  # False for reading from checkpoint
 debug_mode = (
-    False  # When true executes in a local mode where GPU cannot be used
+    True  # When true executes in a local mode where GPU cannot be used
 )
 enable_restore = True  # Restore agent from checkpoint
 env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
@@ -47,7 +47,7 @@ env_config = {
     "root_path": str(getcwd()),
     "training_episodes": 70,
     "max_episode_number": 70,
-    "training_epochs": 4,
+    "training_epochs": 3,
     "testing_episodes": 30,  # TODO 1000,
     "episode_evaluation_freq": 70,
     "number_evaluation_episodes": 30,

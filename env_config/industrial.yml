@@ -9,7 +9,7 @@ slices:
   slice_req:
     embb:
       number_ues: 30
-      ue_throughput: 10 # Mbps
+      ue_throughput: 20 # Mbps
       #ue_throughput: 40 # Mbps
       latency: 30 # ms
     urllc:

@@ -15,8 +15,7 @@ from sixg_radio_mgmt import CommunicationEnv
 from traffics.industrial import IndustrialTraffic
 
 scenarios = ["industrial"]
-agents = ["ssr_protect"]  # , "ssr"]
-# agents = ["ssr"]
+agents = ["ssr"]
 env_type = "simple"  # option "simple" uses 1 step in the environment per agent step and "4step" uses 4 steps per agent step
 EnvClass = CustomEnv if env_type == "4step" else CommunicationEnv
 
@@ -24,7 +23,7 @@ seed = 10
 for scenario in scenarios:
     for agent_name in agents:
         custom_env = EnvClass(
-            ChannelClass=MimicQuadriga,
+            ChannelClass=QuadrigaChannels,
             TrafficClass=IndustrialTraffic,
             MobilityClass=SimpleMobility,
             AssociationClass=IndustrialAssociation,
@@ -113,7 +112,7 @@ for scenario in scenarios:
         steps_per_episode = np.floor(
             max_number_steps / aggregate_steps
         ).astype(int)
-        train_runs = 10
+        train_runs = 1
         total_number_steps = train_episodes * steps_per_episode * train_runs
         if isinstance(custom_env, CustomEnv):
             custom_env.comm_env.max_number_episodes = train_episodes

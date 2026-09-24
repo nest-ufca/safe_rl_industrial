@@ -1,6 +1,11 @@
 # Vs code files
 .vscode
 
+# IDEs and local backups
+.idea/
+*_bkp.py
+sixg_radio_mgmt_bkp/
+
 # Ray results
 ray_results/
 
@@ -18,6 +23,7 @@ hist/*
 # Quadriga files
 *.mat
 .m
+channels/quadriga_channels/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

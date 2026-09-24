@@ -1,13 +1,76 @@
-# RRS Agents example
+# Safe RL Industrial
 
-Code containing examples using the [sixg_radio_mgmt](https://github.com/lasseufpa/sixg_radio_mgmt) repo.
+Código de pesquisa usado no estudo de proteção de serviços URLLC em um cenário
+de Indústria 4.0 com *network slicing* e aprendizagem por reforço.
 
-## Cloning
-Remember to clone submodules using `git clone --recurse-submodules git@github.com:lasseufpa/sixg_scheduling_example.git`
+Este repositório está associado ao artigo do SBrT 2024 e foi publicado para
+permitir o estudo, a replicação dos experimentos e a evolução do trabalho.
 
-## Install
+## Conteúdo principal
 
-- Install [pipenv](https://github.com/pypa/pipenv)
-- Install dependencies using pipenv: `pipenv install`
-- To access the virtual environment created, run `pipenv shell`, now all commands which you run will be performed into virtual enviroment created
-- (In case you want to contribute with this repo, if not you can skip this step) Activate pre-commit hooks to use [black formatter](https://github.com/psf/black), [flake8 lint](https://gitlab.com/pycqa/flake8), [Isort references](https://github.com/timothycrosley/isort) and [Pyright type check](https://github.com/microsoft/pyright). Run `pre-commit install`. Now every time you make a commit, black formatter, flake8, isort and pyrights will make tests to verify if your code is following the [patterns](https://realpython.com/python-pep8/) (you can adapt your IDE or text editor to follow this patterns, e.g. [vs code](https://code.visualstudio.com/docs/python/python-tutorial#_next-steps)).
+- `simu_marl_industrial.py`: proposta MARL baseada em SAC;
+- `simu_industrial.py`: agentes de referência, incluindo o baseline `ssr`;
+- `simu_ray_protect.py`: agente de proteção implementado com Ray/RLlib;
+- `env_config/industrial.yml`: parâmetros do cenário industrial;
+- `channels/quadriga.py`: leitura dos canais gerados no QuaDRiGa;
+- `channels/mimic_quadriga.py`: canal sintético para testes iniciais;
+- `results/gen_results.py`: geração dos gráficos e análise de violações;
+- `GUIA_DE_USO.md`: roteiro detalhado de instalação e execução.
+
+## Clonagem
+
+O projeto utiliza `sixg_radio_mgmt` como submódulo:
+
+```powershell
+git clone --recurse-submodules https://github.com/nest-ufca/safe_rl_industrial.git
+cd safe_rl_industrial
+```
+
+Se o repositório já foi clonado sem os submódulos:
+
+```powershell
+git submodule update --init --recursive
+```
+
+## Ambiente recomendado
+
+O ambiente original foi registrado para Python 3.10. Recomenda-se manter essa
+versão para evitar incompatibilidades com as versões antigas de Ray/RLlib e
+PyTorch.
+
+```powershell
+py -3.10 -m pip install --user pipenv
+pipenv --python 3.10
+pipenv sync
+```
+
+## Canais QuaDRiGa
+
+Os arquivos `.mat` são grandes e não fazem parte do Git. Defina o diretório que
+contém `sim_1.mat`, `sim_2.mat`, etc. antes de executar com
+`QuadrigaChannels`:
+
+```powershell
+$env:QUADRIGA_CHANNEL_DIR = 'D:\dados_quadriga\hall_2'
+```
+
+Sem essa variável, o código procura os arquivos em
+`channels/quadriga_channels/`, que também é ignorado pelo Git.
+
+## Primeira execução
+
+Comece com o canal sintético (`MimicQuadriga`) e uma configuração reduzida.
+Somente depois valide a leitura dos canais reais e execute o experimento
+completo. Consulte [GUIA_DE_USO.md](GUIA_DE_USO.md) para o passo a passo, os
+parâmetros conhecidos e as divergências que ainda precisam ser investigadas.
+
+## Dados e resultados não versionados
+
+O repositório não armazena canais QuaDRiGa, ambientes virtuais, checkpoints do
+Ray, históricos de episódios ou arquivos compactados. Esses artefatos devem ser
+mantidos em armazenamento externo e identificados no registro de cada
+experimento.
+
+## Licença
+
+Consulte o arquivo [LICENSE](LICENSE).

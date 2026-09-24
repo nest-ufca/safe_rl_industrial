@@ -447,9 +447,9 @@ def gen_results_histogram(
         "mmtc": 2,
     }
     color = {
-        "ssr_protect": "tab:blue",
+        "ray_protect": "tab:blue",
         "ssr": "tab:red",
-        "marl_safe": "tab:green",
+        "marl_safe_sac": "tab:green",
     }
     markers = {"embb": "o", "urllc": "s", "mmtc": "*"}
     ylabel = "Cumulative distribution function (CDF)"
@@ -654,8 +654,7 @@ slices = np.arange(3)
 
 # gen_results(scenario_names, agent_names, episodes, metrics, slices)
 slice_names = ["total", "embb", "urllc", "mmtc"]
-agent_names = ["marl_safe", "ssr_protect"]  # , "ssr_protect", "ssr"]
-# agent_names = ["ssr_protect"]
+agent_names = ["marl_safe_sac", "ssr"]
 gen_results_violations(scenario_names, agent_names, episodes, slice_names)
 metrics = ["buffer_latencies", "pkt_throughputs"]
 slice_names = ["embb", "urllc", "mmtc"]

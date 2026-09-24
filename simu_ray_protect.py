@@ -39,7 +39,7 @@ env_config = {
     "seed": 10,
     "seed_test": 15,
     "agent_class": SSRProtectRay,
-    "channel_class": MimicQuadriga,
+    "channel_class": QuadrigaChannels,
     "traffic_class": IndustrialTraffic,
     "mobility_class": SimpleMobility,
     "association_class": IndustrialAssociation,

@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from typing import Optional, Tuple
 
 import numpy as np
@@ -81,11 +83,16 @@ class QuadrigaChannels(Channel):
         return spectral_efficiencies
 
     def read_mat_files(self, episode: int) -> np.ndarray:
-        # channels = sio.loadmat(f"channels/quadriga_channels/sim_{episode}.mat")
-        channels = sio.loadmat(
-            f"./channels/quadriga_channels/sim_{episode+1}.mat"
+        default_dir = Path(__file__).resolve().parent / "quadriga_channels"
+        channel_dir = Path(
+            os.environ.get("QUADRIGA_CHANNEL_DIR", str(default_dir))
         )
-        # aux2 = sio.loadmat(f"D:/CPQD/Quadriga_sim/channel/2x2/NumOfUes50/SCS_60/sim_{episode+1}.mat" )
-        # channels = np.concatenate((aux1["H"], aux2["H"]), axis=2)
+        channel_file = channel_dir / f"sim_{episode + 1}.mat"
+        if not channel_file.is_file():
+            raise FileNotFoundError(
+                f"Canal QuaDRiGa não encontrado: {channel_file}. "
+                "Defina QUADRIGA_CHANNEL_DIR com o diretório dos arquivos .mat."
+            )
+        channels = sio.loadmat(channel_file)
 
         return channels["H"]
